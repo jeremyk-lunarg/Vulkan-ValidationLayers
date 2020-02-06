@@ -57,14 +57,22 @@ class AspectParameters {
 
 struct Subresource : public VkImageSubresource {
     uint32_t aspect_index;
-    Subresource() : VkImageSubresource({0, 0, 0}), aspect_index(0) {}
+    int32_t blit_offset_x;
+    int32_t blit_offset_y;
+    Subresource() : VkImageSubresource({0, 0, 0}), aspect_index(0), blit_offset_x(0), blit_offset_y(0) {}
 
     Subresource(const Subresource& from) = default;
-    Subresource(const RangeEncoder& encoder, const VkImageSubresource& subres);
-    Subresource(VkImageAspectFlags aspect_mask_, uint32_t mip_level_, uint32_t array_layer_, uint32_t aspect_index_)
-        : VkImageSubresource({aspect_mask_, mip_level_, array_layer_}), aspect_index(aspect_index_) {}
-    Subresource(VkImageAspectFlagBits aspect_, uint32_t mip_level_, uint32_t array_layer_, uint32_t aspect_index_)
-        : Subresource(static_cast<VkImageAspectFlags>(aspect_), mip_level_, array_layer_, aspect_index_) {}
+    Subresource(const RangeEncoder& encoder, const VkImageSubresource& subres, const VkOffset3D& blit_offset);
+    Subresource(VkImageAspectFlags aspect_mask_, uint32_t mip_level_, uint32_t array_layer_, uint32_t aspect_index_,
+                int32_t blit_offset_x_, int32_t blit_offset_y_)
+        : VkImageSubresource({aspect_mask_, mip_level_, array_layer_}),
+          aspect_index(aspect_index_),
+          blit_offset_x(blit_offset_x_),
+          blit_offset_y(blit_offset_y_) {}
+    Subresource(VkImageAspectFlagBits aspect_, uint32_t mip_level_, uint32_t array_layer_, uint32_t aspect_index_,
+                int32_t blit_offset_x_, int32_t blit_offset_y_)
+        : Subresource(static_cast<VkImageAspectFlags>(aspect_), mip_level_, array_layer_, aspect_index_, blit_offset_x_,
+                      blit_offset_y_) {}
 };
 
 // Subresource is encoded in (from slowest varying to fastest)
@@ -88,12 +96,14 @@ class RangeEncoder {
           decode_function_(nullptr),
           lower_bound_function_(nullptr),
           lower_bound_with_start_function_(nullptr),
-          aspect_base_{0, 0, 0} {}
+          aspect_base_{0, 0, 0},
+          blit_offset_x(0),
+          blit_offset_y(0) {}
 
-    RangeEncoder(const VkImageSubresourceRange& full_range, const AspectParameters* param);
+    RangeEncoder(const VkImageSubresourceRange& full_range, const AspectParameters* param, const VkOffset3D& blit_offset = {});
     // Create the encoder suitable to the full range (aspect mask *must* be canonical)
-    RangeEncoder(const VkImageSubresourceRange& full_range)
-        : RangeEncoder(full_range, AspectParameters::Get(full_range.aspectMask)) {}
+    RangeEncoder(const VkImageSubresourceRange& full_range, const VkOffset3D& blit_offset = {})
+        : RangeEncoder(full_range, AspectParameters::Get(full_range.aspectMask), blit_offset) {}
     RangeEncoder(const RangeEncoder& from);
 
     inline bool InRange(const VkImageSubresource& subres) const {
@@ -110,13 +120,16 @@ class RangeEncoder {
     }
 
     inline IndexType Encode(const Subresource& pos) const { return (this->*(encode_function_))(pos); }
-    inline IndexType Encode(const VkImageSubresource& subres) const { return Encode(Subresource(*this, subres)); }
+    inline IndexType Encode(const VkImageSubresource& subres, const VkOffset3D& blit_offset = {}) const {
+        return Encode(Subresource(*this, subres, blit_offset));
+    }
 
     Subresource Decode(const IndexType& index) const { return (this->*decode_function_)(index); }
 
-    inline Subresource BeginSubresource(const VkImageSubresourceRange& range) const {
+    inline Subresource BeginSubresource(const VkImageSubresourceRange& range, const VkOffset3D& blit_offset = {}) const {
         const auto aspect_index = LowerBoundFromMask(range.aspectMask);
-        Subresource begin(aspect_bits_[aspect_index], range.baseMipLevel, range.baseArrayLayer, aspect_index);
+        Subresource begin(aspect_bits_[aspect_index], range.baseMipLevel, range.baseArrayLayer, aspect_index, blit_offset.x,
+                          blit_offset.y);
         return begin;
     }
 
@@ -172,23 +185,23 @@ class RangeEncoder {
     template <uint32_t N>
     Subresource DecodeAspectArrayOnly(const IndexType& index) const {
         if ((N > 2) && (index >= aspect_base_[2])) {
-            return Subresource(aspect_bits_[2], 0, static_cast<uint32_t>(index - aspect_base_[2]), 2);
+            return Subresource(aspect_bits_[2], 0, static_cast<uint32_t>(index - aspect_base_[2]), 2, 0, 0);
         } else if ((N > 1) && (index >= aspect_base_[1])) {
-            return Subresource(aspect_bits_[1], 0, static_cast<uint32_t>(index - aspect_base_[1]), 1);
+            return Subresource(aspect_bits_[1], 0, static_cast<uint32_t>(index - aspect_base_[1]), 1, 0, 0);
         }
         // NOTE: aspect_base_[0] is always 0... here and below
-        return Subresource(aspect_bits_[0], 0, static_cast<uint32_t>(index), 0);
+        return Subresource(aspect_bits_[0], 0, static_cast<uint32_t>(index), 0, 0, 0);
     }
 
     // For ranges that only have a single array layer...
     template <uint32_t N>
     Subresource DecodeAspectMipOnly(const IndexType& index) const {
         if ((N > 2) && (index >= aspect_base_[2])) {
-            return Subresource(aspect_bits_[2], static_cast<uint32_t>(index - aspect_base_[2]), 0, 2);
+            return Subresource(aspect_bits_[2], static_cast<uint32_t>(index - aspect_base_[2]), 0, 2, 0, 0);
         } else if ((N > 1) && (index >= aspect_base_[1])) {
-            return Subresource(aspect_bits_[1], static_cast<uint32_t>(index - aspect_base_[1]), 0, 1);
+            return Subresource(aspect_bits_[1], static_cast<uint32_t>(index - aspect_base_[1]), 0, 1, 0, 0);
         }
-        return Subresource(aspect_bits_[0], static_cast<uint32_t>(index), 0, 0);
+        return Subresource(aspect_bits_[0], static_cast<uint32_t>(index), 0, 0, 0, 0);
     }
 
     // For ranges that only have both > 1 layer and level
@@ -210,7 +223,7 @@ class RangeEncoder {
         const IndexType array_offset = base_index - mip_start;
 
         return Subresource(aspect_bits_[aspect_index], static_cast<uint32_t>(mip_level), static_cast<uint32_t>(array_offset),
-                           aspect_index);
+                           aspect_index, 0, 0);
     }
 
     uint32_t LowerBoundImpl1(VkImageAspectFlags aspect_mask) const;
@@ -226,6 +239,8 @@ class RangeEncoder {
     const size_t mip_size_;
     const size_t aspect_size_;
     const VkImageAspectFlagBits* const aspect_bits_;
+    int32_t blit_offset_x;
+    int32_t blit_offset_y;
     uint32_t (*const mask_index_function_)(VkImageAspectFlags);
     IndexType (RangeEncoder::*encode_function_)(const Subresource&) const;
     Subresource (RangeEncoder::*decode_function_)(const IndexType&) const;
