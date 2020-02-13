@@ -280,4 +280,17 @@ class SyncValidator : public ValidationStateTracker, public SyncStageAccess {
                                          uint32_t memoryBarrierCount, const VkMemoryBarrier *pMemoryBarriers,
                                          uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier *pBufferMemoryBarriers,
                                          uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier *pImageMemoryBarriers);
+
+    bool ValidateCmdDrawType(VkCommandBuffer cmd_buffer, bool indexed, VkPipelineBindPoint bind_point, CMD_TYPE cmd_type,
+                             const char *caller, VkQueueFlags queue_flags, const char *queue_flag_code,
+                             const char *renderpass_msg_code, const char *pipebound_msg_code, const char *dynamic_state_msg_code,
+                             const char *vtx_binding_msg_code) const {
+        return false;
+    }
+
+    bool ValidateDescriptorSetBindingData(const CMD_BUFFER_STATE *cb_node, const cvdescriptorset::DescriptorSet *descriptor_set,
+                                          const std::vector<uint32_t> &dynamic_offsets, uint32_t binding, descriptor_req reqs,
+                                          const char *caller, std::string *error) const {
+        return false;
+    }
 };
