@@ -30,8 +30,14 @@ void VkBestPracticesLayerTest::InitBestPracticesFramework() {
     InitFramework(myDbgFunc, m_errorMonitor, &features);
 }
 
-TEST_F(VkBestPracticesLayerTest, UseDeprecatedInstanceExtension) {
-    TEST_DESCRIPTION("Create an instance with a deprecated extension.");
+TEST_F(VkBestPracticesLayerTest, UseDeprecatedExtensions) {
+    TEST_DESCRIPTION("Create an instance and device with a deprecated extension.");
+
+    uint32_t version = SetTargetApiVersion(VK_API_VERSION_1_2);
+    if (version <= VK_API_VERSION_1_0) {
+        printf("%s At least Vulkan version 1.1 is required, skipping test.\n", kSkipPrefix);
+        return;
+    }
 
     if (InstanceExtensionSupported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
         m_instance_extension_names.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -40,7 +46,8 @@ TEST_F(VkBestPracticesLayerTest, UseDeprecatedInstanceExtension) {
         return;
     }
 
-    m_errorMonitor->SetDesiredFailureMsg(VK_DEBUG_REPORT_WARNING_BIT_EXT, "Attempting to enable Deprecated Extension");
+    m_errorMonitor->SetDesiredFailureMsg(VK_DEBUG_REPORT_WARNING_BIT_EXT,
+                                         "UNASSIGNED-BestPractices-vkCreateInstance-deprecated-extension");
     InitBestPracticesFramework();
     m_errorMonitor->VerifyFound();
 
@@ -68,7 +75,8 @@ TEST_F(VkBestPracticesLayerTest, UseDeprecatedInstanceExtension) {
     dev_info.enabledExtensionCount = m_device_extension_names.size();
     dev_info.ppEnabledExtensionNames = m_device_extension_names.data();
 
-    m_errorMonitor->SetDesiredFailureMsg(VK_DEBUG_REPORT_WARNING_BIT_EXT, "Attempting to enable Deprecated Extension");
+    m_errorMonitor->SetDesiredFailureMsg(VK_DEBUG_REPORT_WARNING_BIT_EXT,
+                                         "UNASSIGNED-BestPractices-vkCreateInstance-deprecated-extension");
     vk::CreateDevice(this->gpu(), &dev_info, NULL, &local_device);
     m_errorMonitor->VerifyFound();
 }
