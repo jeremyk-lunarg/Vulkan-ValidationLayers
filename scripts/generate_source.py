@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import difflib
 
 import common_codegen
 
@@ -113,6 +114,14 @@ def main(argv):
                                os.path.join(repo_dir, filename),
                                shallow=False):
                 print('ERROR: Repo files do not match generator output for', filename)
+
+                with open(os.path.join(temp_dir, filename)) as f1:
+                   f1_text = f1.read()
+                with open(os.path.join(repo_dir, filename)) as f2:
+                   f2_text = f2.read()
+                # Find and print the diff:
+                for line in difflib.unified_diff(f1_text, f2_text, fromfile='file1', tofile='file2', lineterm=''):
+                    print(line)
                 files_match = False
 
         # return code for test scripts
