@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# Copyright (c) 2019 The Khronos Group Inc.
-# Copyright (c) 2019 Valve Corporation
-# Copyright (c) 2019 LunarG, Inc.
-# Copyright (c) 2019 Google Inc.
+# Copyright (c) 2020 The Khronos Group Inc.
+# Copyright (c) 2020 Valve Corporation
+# Copyright (c) 2020 LunarG, Inc.
+# Copyright (c) 2020 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -62,6 +62,8 @@ def main(argv):
                                               "lvt_function_pointers.cpp",
                                               "lvt_function_pointers.h",
                                               "vk_typemap_helper.h",
+                                              "best_practices.h",
+                                              "best_practices.cpp",
                                               "command_counter_helper.cpp",
                                               "command_counter_helper.h"]],
                 [common_codegen.repo_relative('scripts/vk_validation_stats.py'),
